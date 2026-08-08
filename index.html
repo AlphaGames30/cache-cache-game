@@ -65,8 +65,38 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const socket = io('https://cache-cache-game.onrender.com'); 
-        const map = L.map('map').setView([48.8566, 2.3522], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // 1. Définition des fonds de carte
+const vueSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri'
+});
+
+const carteModerne = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap, &copy; CARTO'
+});
+
+const carteClassique = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+});
+
+// 2. Initialisation avec la Vue Satellite par défaut
+const map = L.map('map', {
+    center: [48.8566, 2.3522],
+    zoom: 13,
+    layers: [vueSatellite] // Charge la vue satellite au démarrage
+});
+
+// 3. Ajout du bouton de sélection en haut à droite de la carte
+const fondsDeCarte = {
+    "🛰️ Vue Satellite": vueSatellite,
+    "🗺️ Carte HD Moderne": carteModerne,
+    "🌐 OpenStreetMap": carteClassique
+};
+
+L.control.layers(fondsDeCarte).addTo(map);
+        
 
         let ownMarker = null;
         const otherMarkers = {};
