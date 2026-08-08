@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="game_template" name="Page de Jeu Cache-Cache">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure oe_empty">
+                <!-- CDN Leaflet -->
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+                <div class="container my-4 text-center">
+                    <h2>Salon : <span t-esc="game.name"/></h2>
+                    <div id="map" style="height: 50vh; width: 100%; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" class="mb-3"></div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button id="btn-start" class="btn btn-primary w-100 p-3">Activer mon GPS</button>
+                        </div>
+                        <div class="col-6">
+                            <button id="btn-stop" class="btn btn-danger w-100 p-3" disabled="disabled">S'enlever du jeu</button>
+                        </div>
+                    </div>
+                    <p id="status-text" class="text-muted mt-2">Prêt à jouer.</p>
+                </div>
+
+                <script type="text/javascript">
+                    document.addEventListener("DOMContentLoaded", function() {
+                        // --- CONFIGURATION INITIALE ---
+                        // On garde la vue bloquée à 13 au démarrage, tant que le GPS n'est pas actif.
+                        var map = L.map('map').setView([48.8566, 2.3522], 13);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+                        // --- GESTION DES MARQUEURS ---
+                        var ownMarker = null; // Marqueur pour toi
+                        var otherPlayersMarkers = {}; // Dictionnaire pour les autres {player_id: marker}
+
+                        // --- VARIABLES DE SUIVI GPS ---
+                        var watchID = null; // Stocke l'ID du suivi GPS
+                        var firstFix = true; // Pour ne zoomer que la première fois
+
+                        // --- RÉCUPÉRATION DE TON PROPRE ID ---
+                        // Important : cette valeur doit être récupérée dynamiquement plus tard.
+                        var currentPlayerId = 1; // ID de test
+
+                        // --- ROUTINE DE RÉCUPÉRATION DES AUTRES JOUEURS ---
+                        function fetchOtherPlayers() {
+                            if (!watchID) return; // N'interroge pas si on est déconnecté
+
+                            fetch('/game/get_locations', {
+                                method: 'GET', // On suppose que le contrôleur a une route GET
+                                headers: { 'Content-Type': 'application/json' },
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                var players = data.players;
+                                for (var playerId in players) {
+                                    if (playerId == currentPlayerId) continue; // Ne pas dessiner son propre marqueur à deux endroits
+
+                                    var player = players[playerId];
+                                    if (!otherPlayersMarkers[playerId]) {
+                                        // Nouveau joueur
+                                        otherPlayersMarkers[playerId] = L.marker([player.latitude, player.longitude]).addTo(map).bindPopup(player.name);
+                                    } else {
+                                        // Mise à jour du joueur existant
+                                        otherPlayersMarkers[playerId].setLatLng([player.latitude, player.longitude]);
+                                    }
+                                }
+                            });
+                        }
+
+                        // Démarre la routine toutes les 5 secondes
+                        var playersInterval = null;
+
+                        // --- FONCTIONS GPS ---
+                        document.getElementById('btn-start').addEventListener('click', function() {
+                            if ("geolocation" in navigator) {
+                                firstFix = true; // Reset pour le premier zoom
+                                document.getElementById('status-text').innerText = "Attente du signal GPS...";
+
+                                watchID = navigator.geolocation.watchPosition(function(position) {
+                                    var lat = position.coords.latitude;
+                                    var lng = position.coords.longitude;
+
+                                    // 1. Mise à jour ou création de ton marqueur
+                                    if (!ownMarker) {
+                                        ownMarker = L.marker([lat, lng]).addTo(map).bindPopup("Moi");
+                                    } else {
+                                        ownMarker.setLatLng([lat, lng]);
+                                    }
+
+                                    // 2. Comportement du zoom : ne zoomer que la première fois
+                                    if (firstFix) {
+                                        map.setView([lat, lng], 17); // Zoom fort sur toi
+                                        firstFix = false;
+                                    } else {
+                                        // updates ultérieures : on ne change plus le zoom, on centre juste.
+                                        map.setCenter([lat, lng]);
+                                    }
+
+                                    // 3. Mise à jour de l'affichage
+                                    document.getElementById('status-text').innerText = "Signal GPS précis.";
+
+                                    // 4. Envoi de ta position au serveur
+                                    fetch('/game/update_location', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            params: {
+                                                player_id: currentPlayerId,
+                                                latitude: lat,
+                                                longitude: lng
+                                            }
+                                        })
+                                    });
+                                }, function(err) {
+                                    alert("Erreur GPS : " + err.message);
+                                }, { enableHighAccuracy: true });
+
+                                // Activer les routines
+                                playersInterval = setInterval(fetchOtherPlayers, 5000); // Voir les autres toutes les 5s
+
+                                // Gérer les boutons
+                                document.getElementById('btn-start').disabled = true;
+                                document.getElementById('btn-stop').disabled = false;
+                            } else {
+                                alert("La géolocalisation n'est pas supportée.");
+                            }
+                        });
+
+                        document.getElementById('btn-stop').addEventListener('click', function() {
+                            if (watchID) {
+                                // 1. Arrêt du suivi GPS
+                                navigator.geolocation.clearWatch(watchID);
+                                watchID = null;
+
+                                // 2. Retrait des marqueurs
+                                if (ownMarker) {
+                                    map.removeLayer(ownMarker);
+                                    ownMarker = null;
+                                }
+
+                                // 3. Arrêt de la récupération des autres joueurs
+                                clearInterval(playersInterval);
+                                // Gérer les boutons
+                                document.getElementById('btn-start').disabled = false;
+                                document.getElementById('btn-stop').disabled = true;
+                                document.getElementById('status-text').innerText = "Jeu arrêté.";
+                            }
+                        });
+                    });
+                </script>
+            </div>
+        </t>
+    </template>
+</odoo>
