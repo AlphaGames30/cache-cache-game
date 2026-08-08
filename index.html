@@ -8,6 +8,14 @@
     <style>
         body { font-family: system-ui, sans-serif; text-align: center; margin: 0; padding: 10px; background: #f4f4f9; }
         #map { height: 55vh; width: 100%; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* Plein écran ciblé uniquement sur la carte */
+        #map:fullscreen, #map:-webkit-full-screen {
+            width: 100vw;
+            height: 100vh;
+            border-radius: 0;
+        }
+
         .user-config { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; background: white; padding: 10px; border-radius: 8px; }
         input[type="text"] { padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
         .file-label { padding: 8px; background: #e9ecef; border-radius: 6px; font-size: 14px; cursor: pointer; color: #495057; }
@@ -16,8 +24,6 @@
         button { flex: 1; padding: 14px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
         #btn-start { background: #007bff; }
         #btn-stop { background: #dc3545; opacity: 0.5; }
-        
-        /* 1. Style du bouton Plein Écran */
         #btn-fullscreen { background: #6c757d; }
 
         p { color: #666; font-size: 13px; margin-top: 8px; }
@@ -62,7 +68,6 @@
     <div class="btn-container">
         <button id="btn-start">Activer mon GPS</button>
         <button id="btn-stop" disabled>S'enlever du jeu</button>
-        <!-- 2. Bouton Plein Écran dans la structure -->
         <button id="btn-fullscreen">Plein écran</button>
     </div>
     <p id="status">Configure ton profil puis clique sur Activer</p>
@@ -108,11 +113,13 @@
         let firstLocation = true;
         let userAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
-        // 3. Gestionnaire du bouton Plein Écran
+        // Plein écran uniquement pour l'élément de la carte (#map)
         const btnFullscreen = document.getElementById('btn-fullscreen');
+        const mapElement = document.getElementById('map');
+
         btnFullscreen.addEventListener('click', () => {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => alert("Plein écran non supporté sur ce navigateur"));
+                mapElement.requestFullscreen().catch(err => alert("Plein écran non supporté"));
             } else {
                 if (document.exitFullscreen) document.exitFullscreen();
             }
@@ -120,9 +127,11 @@
 
         document.addEventListener('fullscreenchange', () => {
             btnFullscreen.innerText = document.fullscreenElement ? "Réduire" : "Plein écran";
+            // Redimensionne proprement la carte satellite en plein écran
+            setTimeout(() => map.invalidateSize(), 200);
         });
 
-        // Convertir la photo importée en format léger (Base64)
+        // Convertir la photo importée
         document.getElementById('avatar-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -135,7 +144,7 @@
             }
         });
 
-        // Créer l'icône personnalisée avec la photo et le pseudo
+        // Icône personnalisée
         function createCustomIcon(pseudo, avatarUrl) {
             return L.divIcon({
                 className: 'player-avatar-marker',
@@ -149,7 +158,7 @@
             });
         }
 
-        // Afficher les joueurs déjà connectés
+        // Synchronisation des joueurs
         socket.on('current_players', (players) => {
             for (let id in players) {
                 if (id !== socket.id && !otherMarkers[id]) {
@@ -160,7 +169,6 @@
             }
         });
 
-        // Mise à jour ou création d'un joueur en mouvement
         socket.on('player_moved', (data) => {
             if (data.id === socket.id) return;
             const icon = createCustomIcon(data.pseudo, data.avatar);
@@ -173,7 +181,6 @@
             }
         });
 
-        // Supprimer le joueur de la carte s'il quitte
         socket.on('player_left', (id) => {
             if (otherMarkers[id]) {
                 map.removeLayer(otherMarkers[id]);
@@ -222,7 +229,7 @@
             document.getElementById('avatar-input').disabled = true;
         });
 
-        // Désactiver le GPS / Quitter
+        // Désactiver le GPS
         document.getElementById('btn-stop').addEventListener('click', () => {
             if (watchID) navigator.geolocation.clearWatch(watchID);
             if (ownMarker) {
