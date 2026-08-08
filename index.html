@@ -27,19 +27,29 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        // Lien du serveur (à modifier plus tard)
-        const socket = io('https://ton-serveur.onrender.com'); 
+        // Remplace par ton adresse Render réelle !
+        const socket = io('https://ton-serveur-cache-cache.onrender.com'); 
+
         const map = L.map('map').setView([48.8566, 2.3522], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         let ownMarker = null;
         const otherMarkers = {};
         let watchID = null;
-        let firstLocation = true; // Permet de zoomer une seule fois, puis laisse le zoom libre
+        let firstLocation = true;
 
-        // Voir les autres joueurs
+        // Charger tous les joueurs déjà connectés lors de l'arrivée
+        socket.on('current_players', (players) => {
+            for (let id in players) {
+                if (id !== socket.id && !otherMarkers[id]) {
+                    otherMarkers[id] = L.marker([players[id].lat, players[id].lng]).addTo(map).bindPopup('Autre Joueur');
+                }
+            }
+        });
+
+        // Mise à jour ou ajout d'un joueur en direct
         socket.on('player_moved', (data) => {
-            if (data.id === socket.id) return; // Ne pas s'afficher soi-même en double
+            if (data.id === socket.id) return;
             if (otherMarkers[data.id]) {
                 otherMarkers[data.id].setLatLng([data.lat, data.lng]);
             } else {
@@ -47,7 +57,7 @@
             }
         });
 
-        // Effacer un joueur qui quitte le jeu
+        // Supprimer le marqueur d'un joueur parti
         socket.on('player_left', (id) => {
             if (otherMarkers[id]) {
                 map.removeLayer(otherMarkers[id]);
@@ -55,7 +65,7 @@
             }
         });
 
-        // Bouton Activer
+        // Démarrer la géolocalisation
         document.getElementById('btn-start').addEventListener('click', () => {
             if (!navigator.geolocation) return alert("GPS non supporté.");
             
@@ -71,12 +81,12 @@
                 }
 
                 if (firstLocation) {
-                    map.setView([latitude, longitude], 17); // Zoom précis uniquement au démarrage
+                    map.setView([latitude, longitude], 17);
                     firstLocation = false;
                 }
                 
                 socket.emit('update_position', { lat: latitude, lng: longitude });
-            }, (err) => alert("Erreur GPS"), { enableHighAccuracy: true });
+            }, (err) => alert("Active la localisation sur ton téléphone !"), { enableHighAccuracy: true });
 
             document.getElementById('btn-start').disabled = true;
             document.getElementById('btn-start').style.opacity = '0.5';
@@ -84,7 +94,7 @@
             document.getElementById('btn-stop').style.opacity = '1';
         });
 
-        // Bouton S'enlever
+        // Arrêter le partage
         document.getElementById('btn-stop').addEventListener('click', () => {
             if (watchID) navigator.geolocation.clearWatch(watchID);
             if (ownMarker) {
