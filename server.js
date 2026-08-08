@@ -5,24 +5,40 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+// Augmentation de la limite de taille pour transporter les photos de profil
+const io = new Server(server, { 
+    cors: { origin: "*" },
+    maxHttpBufferSize: 1e7 
+});
 
-// Servir les fichiers de la page web (index.html)
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Gestion des joueurs
 const players = {};
 
 io.on('connection', (socket) => {
+    // Transmettre la liste complète des joueurs au nouveau venu
     socket.emit('current_players', players);
 
+    // Mettre à jour la position, le pseudo et l'avatar d'un joueur
     socket.on('update_position', (data) => {
-        players[socket.id] = { lat: data.lat, lng: data.lng };
-        io.emit('player_moved', { id: socket.id, lat: data.lat, lng: data.lng });
+        players[socket.id] = { 
+            lat: data.lat, 
+            lng: data.lng,
+            pseudo: data.pseudo || 'Joueur',
+            avatar: data.avatar
+        };
+        
+        io.emit('player_moved', { 
+            id: socket.id, 
+            lat: data.lat, 
+            lng: data.lng,
+            pseudo: data.pseudo || 'Joueur',
+            avatar: data.avatar
+        });
     });
 
     socket.on('leave_game', () => {
