@@ -6,30 +6,65 @@
     <title>Cache-Cache GPS</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: sans-serif; text-align: center; margin: 0; padding: 10px; background: #f4f4f9; }
-        #map { height: 65vh; width: 100%; border-radius: 12px; margin-bottom: 10px; }
+        body { font-family: system-ui, sans-serif; text-align: center; margin: 0; padding: 10px; background: #f4f4f9; }
+        #map { height: 55vh; width: 100%; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .user-config { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; background: white; padding: 10px; border-radius: 8px; }
+        input[type="text"] { padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+        .file-label { padding: 8px; background: #e9ecef; border-radius: 6px; font-size: 14px; cursor: pointer; color: #495057; }
+        input[type="file"] { display: none; }
         .btn-container { display: flex; gap: 10px; }
-        button { flex: 1; padding: 15px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
+        button { flex: 1; padding: 14px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
         #btn-start { background: #007bff; }
         #btn-stop { background: #dc3545; opacity: 0.5; }
-        p { color: #666; font-size: 14px; margin-top: 10px; }
+        p { color: #666; font-size: 13px; margin-top: 8px; }
+
+        /* Style des marqueurs personnalisés */
+        .player-avatar-marker {
+            text-align: center;
+        }
+        .player-avatar-marker img {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 3px solid #007bff;
+            object-fit: cover;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .player-avatar-marker .pseudo-tag {
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            white-space: nowrap;
+            margin-top: -4px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
     <h2>Cache-Cache GPS</h2>
+    
+    <div class="user-config" id="config-box">
+        <input type="text" id="pseudo-input" placeholder="Ton Pseudo" value="Joueur">
+        <label for="avatar-input" class="file-label" id="file-status">📷 Choisir une photo de profil</label>
+        <input type="file" id="avatar-input" accept="image/*">
+    </div>
+
     <div id="map"></div>
+
     <div class="btn-container">
         <button id="btn-start">Activer mon GPS</button>
         <button id="btn-stop" disabled>S'enlever du jeu</button>
     </div>
-    <p id="status">Cliquez sur Activer pour démarrer</p>
+    <p id="status">Configure ton profil puis clique sur Activer</p>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        // Remplace par ton adresse Render réelle !
-        const socket = io('https://cache-cache-game.onrender.com/'); 
-
+        const socket = io('https://cache-cache-game.onrender.com'); 
         const map = L.map('map').setView([48.8566, 2.3522], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -37,27 +72,62 @@
         const otherMarkers = {};
         let watchID = null;
         let firstLocation = true;
+        
+        // Avatar par défaut (icône générique)
+        let userAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
-        // Charger tous les joueurs déjà connectés lors de l'arrivée
+        // Convertir la photo importée en format léger (Base64)
+        document.getElementById('avatar-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    userAvatar = event.target.result;
+                    document.getElementById('file-status').innerText = "✅ Photo sélectionnée !";
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Créer l'icône personnalisée avec la photo et le pseudo
+        function createCustomIcon(pseudo, avatarUrl) {
+            return L.divIcon({
+                className: 'player-avatar-marker',
+                html: `<div>
+                        <img src="${avatarUrl || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}">
+                        <br>
+                        <span class="pseudo-tag">${pseudo}</span>
+                       </div>`,
+                iconSize: [50, 60],
+                iconAnchor: [25, 30]
+            });
+        }
+
+        // Afficher les joueurs déjà connectés
         socket.on('current_players', (players) => {
             for (let id in players) {
                 if (id !== socket.id && !otherMarkers[id]) {
-                    otherMarkers[id] = L.marker([players[id].lat, players[id].lng]).addTo(map).bindPopup('Autre Joueur');
+                    const p = players[id];
+                    const icon = createCustomIcon(p.pseudo, p.avatar);
+                    otherMarkers[id] = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
                 }
             }
         });
 
-        // Mise à jour ou ajout d'un joueur en direct
+        // Mise à jour ou création d'un joueur en mouvement
         socket.on('player_moved', (data) => {
             if (data.id === socket.id) return;
+            const icon = createCustomIcon(data.pseudo, data.avatar);
+            
             if (otherMarkers[data.id]) {
                 otherMarkers[data.id].setLatLng([data.lat, data.lng]);
+                otherMarkers[data.id].setIcon(icon);
             } else {
-                otherMarkers[data.id] = L.marker([data.lat, data.lng]).addTo(map).bindPopup('Autre Joueur');
+                otherMarkers[data.id] = L.marker([data.lat, data.lng], { icon: icon }).addTo(map);
             }
         });
 
-        // Supprimer le marqueur d'un joueur parti
+        // Supprimer le joueur de la carte s'il quitte
         socket.on('player_left', (id) => {
             if (otherMarkers[id]) {
                 map.removeLayer(otherMarkers[id]);
@@ -65,36 +135,49 @@
             }
         });
 
-        // Démarrer la géolocalisation
+        // Activer le GPS
         document.getElementById('btn-start').addEventListener('click', () => {
             if (!navigator.geolocation) return alert("GPS non supporté.");
             
+            const pseudo = document.getElementById('pseudo-input').value.trim() || 'Joueur';
+
             firstLocation = true;
             watchID = navigator.geolocation.watchPosition((pos) => {
                 const { latitude, longitude } = pos.coords;
-                document.getElementById('status').innerText = `GPS actif : ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-                
+                document.getElementById('status').innerText = `GPS Actif (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+
+                const myIcon = createCustomIcon(pseudo + ' (Moi)', userAvatar);
+
                 if (!ownMarker) {
-                    ownMarker = L.marker([latitude, longitude]).addTo(map).bindPopup("Moi").openPopup();
+                    ownMarker = L.marker([latitude, longitude], { icon: myIcon }).addTo(map);
                 } else {
                     ownMarker.setLatLng([latitude, longitude]);
+                    ownMarker.setIcon(myIcon);
                 }
 
                 if (firstLocation) {
                     map.setView([latitude, longitude], 17);
                     firstLocation = false;
                 }
-                
-                socket.emit('update_position', { lat: latitude, lng: longitude });
+
+                // Envoi des infos au serveur
+                socket.emit('update_position', { 
+                    lat: latitude, 
+                    lng: longitude, 
+                    pseudo: pseudo, 
+                    avatar: userAvatar 
+                });
             }, (err) => alert("Active la localisation sur ton téléphone !"), { enableHighAccuracy: true });
 
             document.getElementById('btn-start').disabled = true;
             document.getElementById('btn-start').style.opacity = '0.5';
             document.getElementById('btn-stop').disabled = false;
             document.getElementById('btn-stop').style.opacity = '1';
+            document.getElementById('pseudo-input').disabled = true;
+            document.getElementById('avatar-input').disabled = true;
         });
 
-        // Arrêter le partage
+        // Désactiver le GPS / Quitter
         document.getElementById('btn-stop').addEventListener('click', () => {
             if (watchID) navigator.geolocation.clearWatch(watchID);
             if (ownMarker) {
@@ -107,6 +190,8 @@
             document.getElementById('btn-start').style.opacity = '1';
             document.getElementById('btn-stop').disabled = true;
             document.getElementById('btn-stop').style.opacity = '0.5';
+            document.getElementById('pseudo-input').disabled = false;
+            document.getElementById('avatar-input').disabled = false;
         });
     </script>
 </body>
