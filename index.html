@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache-Cache GPS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: sans-serif; text-align: center; margin: 0; padding: 10px; background-color: #f4f4f9; }
+        #map { height: 70vh; width: 100%; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { padding: 15px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 8px; width: 100%; margin-top: 10px; cursor: pointer; }
+        p { color: #666; font-size: 14px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Cache-Cache GPS</h2>
+    <div id="map"></div>
+    <button id="btn-gps">Partager ma position</button>
+    <p id="status">Cliquez sur le bouton pour démarrer</p>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // --- CONFIGURATION ---
+        // Remplace l'URL ci-dessous par l'adresse de ton serveur Render UNE FOIS CRÉÉ
+        const socket = io('https://ton-serveur-cache-cache.onrender.com'); 
+        // ---------------------
+
+        const map = L.map('map').setView([48.8566, 2.3522], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const markers = {};
+
+        // Réception des positions des autres joueurs
+        socket.on('player_moved', (data) => {
+            if (markers[data.id]) {
+                markers[data.id].setLatLng([data.lat, data.lng]);
+            } else {
+                markers[data.id] = L.marker([data.lat, data.lng], { title: 'Joueur' }).addTo(map);
+            }
+        });
+
+        // Transmettre son GPS
+        document.getElementById('btn-gps').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    document.getElementById('status').innerText = `GPS actif : ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                    map.setView([latitude, longitude], 16);
+                    
+                    // Envoi en temps réel au serveur
+                    socket.emit('update_position', { lat: latitude, lng: longitude });
+                }, (err) => alert("Erreur GPS : " + err.message), { enableHighAccuracy: true });
+            } else {
+                alert("La géolocalisation n'est pas supportée.");
+            }
+        });
+    </script>
+</body>
+</html>
