@@ -6,7 +6,6 @@
     <title>Cache-Cache GPS</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #btn-fullscreen { background: #6c757d; }
         body { font-family: system-ui, sans-serif; text-align: center; margin: 0; padding: 10px; background: #f4f4f9; }
         #map { height: 55vh; width: 100%; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .user-config { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; background: white; padding: 10px; border-radius: 8px; }
@@ -15,9 +14,12 @@
         input[type="file"] { display: none; }
         .btn-container { display: flex; gap: 10px; }
         button { flex: 1; padding: 14px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
-        <button id="btn-fullscreen">Plein écran</button>
         #btn-start { background: #007bff; }
         #btn-stop { background: #dc3545; opacity: 0.5; }
+        
+        /* 1. Style du bouton Plein Écran */
+        #btn-fullscreen { background: #6c757d; }
+
         p { color: #666; font-size: 13px; margin-top: 8px; }
 
         /* Style des marqueurs personnalisés */
@@ -60,6 +62,8 @@
     <div class="btn-container">
         <button id="btn-start">Activer mon GPS</button>
         <button id="btn-stop" disabled>S'enlever du jeu</button>
+        <!-- 2. Bouton Plein Écran dans la structure -->
+        <button id="btn-fullscreen">Plein écran</button>
     </div>
     <p id="status">Configure ton profil puis clique sur Activer</p>
 
@@ -67,46 +71,56 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const socket = io('https://cache-cache-game.onrender.com'); 
-        // 1. Définition des fonds de carte
-const vueSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Tiles &copy; Esri'
-});
 
-const carteModerne = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap, &copy; CARTO'
-});
+        // Fonds de carte
+        const vueSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri'
+        });
 
-const carteClassique = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
-});
+        const carteModerne = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap, &copy; CARTO'
+        });
 
-// 2. Initialisation avec la Vue Satellite par défaut
-const map = L.map('map', {
-    center: [48.8566, 2.3522],
-    zoom: 13,
-    layers: [vueSatellite] // Charge la vue satellite au démarrage
-});
+        const carteClassique = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        });
 
-// 3. Ajout du bouton de sélection en haut à droite de la carte
-const fondsDeCarte = {
-    "🛰️ Vue Satellite": vueSatellite,
-    "🗺️ Carte HD Moderne": carteModerne,
-    "🌐 OpenStreetMap": carteClassique
-};
+        const map = L.map('map', {
+            center: [48.8566, 2.3522],
+            zoom: 13,
+            layers: [vueSatellite]
+        });
 
-L.control.layers(fondsDeCarte).addTo(map);
-        
+        const fondsDeCarte = {
+            "🛰️ Vue Satellite": vueSatellite,
+            "🗺️ Carte HD Moderne": carteModerne,
+            "🌐 OpenStreetMap": carteClassique
+        };
+
+        L.control.layers(fondsDeCarte).addTo(map);
 
         let ownMarker = null;
         const otherMarkers = {};
         let watchID = null;
         let firstLocation = true;
-        
-        // Avatar par défaut (icône générique)
         let userAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+
+        // 3. Gestionnaire du bouton Plein Écran
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => alert("Plein écran non supporté sur ce navigateur"));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            btnFullscreen.innerText = document.fullscreenElement ? "Réduire" : "Plein écran";
+        });
 
         // Convertir la photo importée en format léger (Base64)
         document.getElementById('avatar-input').addEventListener('change', function(e) {
@@ -192,7 +206,6 @@ L.control.layers(fondsDeCarte).addTo(map);
                     firstLocation = false;
                 }
 
-                // Envoi des infos au serveur
                 socket.emit('update_position', { 
                     lat: latitude, 
                     lng: longitude, 
@@ -225,20 +238,6 @@ L.control.layers(fondsDeCarte).addTo(map);
             document.getElementById('pseudo-input').disabled = false;
             document.getElementById('avatar-input').disabled = false;
         });
-
-    const btnFullscreen = document.getElementById('btn-fullscreen');
-btnFullscreen.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => alert("Plein écran non supporté"));
-    } else {
-        if (document.exitFullscreen) document.exitFullscreen();
-    }
-});
-
-document.addEventListener('fullscreenchange', () => {
-    btnFullscreen.innerText = document.fullscreenElement ? "Réduire" : "Plein écran";
-});
-        
     </script>
 </body>
 </html>
