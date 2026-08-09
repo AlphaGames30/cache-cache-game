@@ -11,12 +11,32 @@
             text-align: center; 
             margin: 0; 
             padding: 12px; 
-            /* Fond d'écran collines vertes */
             background: url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1000') no-repeat center center fixed;
             background-size: cover;
             min-height: 100vh;
         }
         
+        /* Bouton Musique Flottant */
+        .music-toggle {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            width: auto;
+        }
+        .music-toggle.playing {
+            background: rgba(40, 167, 69, 0.9);
+        }
+
         .card { 
             background: rgba(255, 255, 255, 0.92); 
             backdrop-filter: blur(5px);
@@ -43,7 +63,7 @@
         .room-code-display { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #007bff; background: #eef5ff; padding: 10px; border-radius: 8px; }
         .timer-display { font-size: 26px; font-weight: bold; color: #dc3545; }
 
-        /* Style des Puces Pinpoint (Goutte GPS) */
+        /* Puces GPS Pinpoint */
         .player-avatar-marker { text-align: center; }
         .player-avatar-marker .pseudo-tag {
             background: rgba(0, 0, 0, 0.85);
@@ -82,32 +102,22 @@
             background: white;
         }
 
-        /* Style du bloc des Règles du Jeu */
-        .rules-card {
-            text-align: left;
-            padding: 20px;
-        }
-        .rules-title {
-            text-align: center;
-            font-size: 28px;
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: #111;
-        }
-        .rules-text {
-            font-size: 25px;
-            font-style: italic;
-            line-height: 1.4;
-            color: #222;
-        }
-        .rules-text p {
-            margin: 12px 0;
-        }
+        /* Règles du Jeu */
+        .rules-card { text-align: left; padding: 20px; }
+        .rules-title { text-align: center; font-size: 28px; margin-top: 0; margin-bottom: 15px; color: #111; }
+        .rules-text { font-size: 25px; font-style: italic; line-height: 1.4; color: #222; }
+        .rules-text p { margin: 12px 0; }
     </style>
 </head>
 <body>
 
-    <!-- ZONE APPLICATIVE (LANCEUR DE JEU) -->
+    <!-- BOUTON & AUDIO MUSIQUE DE FOND -->
+    <button id="btn-music" class="music-toggle">🎵 Musique : OFF</button>
+    <audio id="bg-music" loop preload="auto">
+        <source src="https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- ZONE LANCEUR DE JEU -->
     <div id="game-app">
         <!-- ÉCRAN D'ACCUEIL -->
         <div id="screen-home" class="card">
@@ -165,21 +175,20 @@
         </div>
     </div>
 
-    <!-- ZONE VIDÉO YOUTUBE (Sous le lanceur) -->
-<div class="card">
-    <h3>🎥 Vidéo explicative</h3>
-    <div style="position: relative; max-width: 340px; margin: 0 auto; aspect-ratio: 9/16; overflow: hidden; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
-        <iframe 
-            src="https://www.youtube.com/embed/34UUTZOPL8k" 
-            style="position: absolute; top:0; left:0; width:100%; height:100%; border:0;" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
+    <!-- ZONE VIDÉO YOUTUBE -->
+    <div class="card">
+        <h3>🎥 Vidéo explicative</h3>
+        <div style="position: relative; max-width: 340px; margin: 0 auto; aspect-ratio: 9/16; overflow: hidden; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+            <iframe 
+                src="https://www.youtube.com/embed/34UUTZOPL8k" 
+                style="position: absolute; top:0; left:0; width:100%; height:100%; border:0;" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen>
+            </iframe>
+        </div>
     </div>
-</div>
-    
 
-    <!-- ZONE RÈGLES DU JEU (En bas) -->
+    <!-- ZONE RÈGLES DU JEU -->
     <div class="card rules-card">
         <h2 class="rules-title">But du jeu</h2>
         <div class="rules-text">
@@ -194,6 +203,23 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const socket = io('https://cache-cache-game.onrender.com');
+
+        // Gestion de la Musique de Fond
+        const bgMusic = document.getElementById('bg-music');
+        const btnMusic = document.getElementById('btn-music');
+        bgMusic.volume = 0.25; // Volume modéré (25%)
+
+        btnMusic.addEventListener('click', () => {
+            if (bgMusic.paused) {
+                bgMusic.play();
+                btnMusic.innerText = "🔊 Musique : ON";
+                btnMusic.classList.add('playing');
+            } else {
+                bgMusic.pause();
+                btnMusic.innerText = "🎵 Musique : OFF";
+                btnMusic.classList.remove('playing');
+            }
+        });
 
         let userAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
         let currentRoomCode = null;
