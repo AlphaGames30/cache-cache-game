@@ -7,177 +7,240 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: system-ui, sans-serif; text-align: center; margin: 0; padding: 10px; background: #f4f4f9; }
-        #map { height: 55vh; width: 100%; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        
-        /* Plein écran ciblé uniquement sur la carte */
-        #map:fullscreen, #map:-webkit-full-screen {
-            width: 100vw;
-            height: 100vh;
-            border-radius: 0;
-        }
-
-        .user-config { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; background: white; padding: 10px; border-radius: 8px; }
-        input[type="text"] { padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
-        .file-label { padding: 8px; background: #e9ecef; border-radius: 6px; font-size: 14px; cursor: pointer; color: #495057; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 12px; }
+        input[type="text"], select { width: 90%; padding: 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 8px; text-align: center; margin: 6px 0; }
+        .file-label { display: block; padding: 10px; background: #e9ecef; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 6px 0; }
         input[type="file"] { display: none; }
-        .btn-container { display: flex; gap: 10px; }
-        button { flex: 1; padding: 14px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
-        #btn-start { background: #007bff; }
-        #btn-stop { background: #dc3545; opacity: 0.5; }
-        #btn-fullscreen { background: #6c757d; }
+        button { width: 100%; padding: 12px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; margin: 4px 0; }
+        .btn-blue { background: #007bff; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #dc3545; }
+        .btn-grey { background: #6c757d; }
+        .hidden { display: none !important; }
 
-        p { color: #666; font-size: 13px; margin-top: 8px; }
+        #map { height: 60vh; width: 100%; border-radius: 12px; margin-bottom: 10px; }
+        #map:fullscreen, #map:-webkit-full-screen { width: 100vw; height: 100vh; border-radius: 0; }
 
-        /* Style des marqueurs personnalisés */
-        .player-avatar-marker {
-            text-align: center;
-        }
-        .player-avatar-marker img {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            border: 3px solid #007bff;
-            object-fit: cover;
-            background: white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        }
+        .room-code-display { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #007bff; background: #eef5ff; padding: 10px; border-radius: 8px; }
+        .timer-display { font-size: 26px; font-weight: bold; color: #dc3545; }
+
+        /* Style Marqueur : Pseudo AU-DESSUS de la photo */
+        .player-avatar-marker { text-align: center; }
         .player-avatar-marker .pseudo-tag {
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(0, 0, 0, 0.85);
             color: white;
             font-size: 11px;
             font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
             white-space: nowrap;
-            margin-top: -4px;
             display: inline-block;
+            margin-bottom: 2px;
         }
+        .player-avatar-marker img {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+        .player-avatar-marker img.chat { border: 3px solid #dc3545; }
+        .player-avatar-marker img.souris { border: 3px solid #28a745; }
     </style>
 </head>
 <body>
-    <h2>Cache-Cache GPS</h2>
-    
-    <div class="user-config" id="config-box">
+
+    <!-- ÉCRAN D'ACCUEIL -->
+    <div id="screen-home" class="card">
+        <h2>Cache-Cache GPS</h2>
         <input type="text" id="pseudo-input" placeholder="Ton Pseudo" value="Joueur">
-        <label for="avatar-input" class="file-label" id="file-status">📷 Choisir une photo de profil</label>
+        <label for="avatar-input" class="file-label" id="file-status">📷 Photo de profil</label>
         <input type="file" id="avatar-input" accept="image/*">
+        
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <button class="btn-blue" id="btn-create-view">Créer une partie</button>
+        <button class="btn-green" id="btn-join-view">Rejoindre une partie</button>
     </div>
 
-    <div id="map"></div>
-
-    <div class="btn-container">
-        <button id="btn-start">Activer mon GPS</button>
-        <button id="btn-stop" disabled>S'enlever du jeu</button>
-        <button id="btn-fullscreen">Plein écran</button>
+    <!-- REJOINDRE -->
+    <div id="screen-join" class="card hidden">
+        <h3>Rejoindre une partie</h3>
+        <input type="text" id="join-code-input" placeholder="Code à 12 chiffres" maxlength="12">
+        <button class="btn-green" id="btn-confirm-join">Valider et rejoindre</button>
+        <button class="btn-grey" id="btn-back-home">Retour</button>
     </div>
-    <p id="status">Configure ton profil puis clique sur Activer</p>
+
+    <!-- SALON DE LOBBY -->
+    <div id="screen-lobby" class="card hidden">
+        <h3>Salon de jeu</h3>
+        <p>Code de la partie :</p>
+        <div class="room-code-display" id="display-code">------------</div>
+        <p>Temps restant pour rejoindre :</p>
+        <div class="timer-display" id="display-timer">120s</div>
+
+        <div style="margin: 15px 0;">
+            <label><b>Ton camp :</b></label><br>
+            <select id="role-select">
+                <option value="Souris">🐭 Souris (Se cache)</option>
+                <option value="Chat">🐱 Chat (Cherche)</option>
+            </select>
+        </div>
+
+        <div id="players-list-box" style="font-size: 14px; color: #555; margin-bottom: 10px;">Joueurs prêts...</div>
+
+        <button class="btn-blue hidden" id="btn-launch">🚀 Lancer la partie</button>
+    </div>
+
+    <!-- ÉCRAN DE JEU (CARTE) -->
+    <div id="screen-game" class="hidden">
+        <div id="map"></div>
+        <div class="card">
+            <div style="display: flex; gap: 6px;">
+                <button class="btn-blue" id="btn-start">Activer GPS</button>
+                <button class="btn-red" id="btn-stop" disabled>Désactiver</button>
+                <button class="btn-grey" id="btn-fullscreen">Plein écran</button>
+            </div>
+            <p id="status" style="font-size: 12px; color: #666; margin-top: 6px;">GPS Inactif</p>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        const socket = io('https://cache-cache-game.onrender.com'); 
+        const socket = io('https://cache-cache-game.onrender.com');
 
-        // Fonds de carte
-        const vueSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri'
-        });
-
-        const carteModerne = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap, &copy; CARTO'
-        });
-
-        const carteClassique = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
-        });
-
-        const map = L.map('map', {
-            center: [48.8566, 2.3522],
-            zoom: 13,
-            layers: [vueSatellite]
-        });
-
-        const fondsDeCarte = {
-            "🛰️ Vue Satellite": vueSatellite,
-            "🗺️ Carte HD Moderne": carteModerne,
-            "🌐 OpenStreetMap": carteClassique
-        };
-
-        L.control.layers(fondsDeCarte).addTo(map);
-
+        let userAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        let currentRoomCode = null;
+        let isHost = false;
         let ownMarker = null;
         const otherMarkers = {};
         let watchID = null;
-        let firstLocation = true;
-        let userAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
-        // Plein écran uniquement pour l'élément de la carte (#map)
-        const btnFullscreen = document.getElementById('btn-fullscreen');
-        const mapElement = document.getElementById('map');
+        // Navigation entre écrans
+        const screenHome = document.getElementById('screen-home');
+        const screenJoin = document.getElementById('screen-join');
+        const screenLobby = document.getElementById('screen-lobby');
+        const screenGame = document.getElementById('screen-game');
 
-        btnFullscreen.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                mapElement.requestFullscreen().catch(err => alert("Plein écran non supporté"));
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
-        });
-
-        document.addEventListener('fullscreenchange', () => {
-            btnFullscreen.innerText = document.fullscreenElement ? "Réduire" : "Plein écran";
-            // Redimensionne proprement la carte satellite en plein écran
-            setTimeout(() => map.invalidateSize(), 200);
-        });
-
-        // Convertir la photo importée
+        // Gestion Photo
         document.getElementById('avatar-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(event) {
-                    userAvatar = event.target.result;
-                    document.getElementById('file-status').innerText = "✅ Photo sélectionnée !";
+                reader.onload = (evt) => {
+                    userAvatar = evt.target.result;
+                    document.getElementById('file-status').innerText = "✅ Photo choisie !";
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        // Icône personnalisée
-        function createCustomIcon(pseudo, avatarUrl) {
+        // Boutons Accueil
+        document.getElementById('btn-create-view').addEventListener('click', () => {
+            const pseudo = document.getElementById('pseudo-input').value.trim() || 'Joueur';
+            socket.emit('create_room', { pseudo, avatar: userAvatar, role: 'Souris' });
+        });
+
+        document.getElementById('btn-join-view').addEventListener('click', () => {
+            screenHome.classList.add('hidden');
+            screenJoin.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-back-home').addEventListener('click', () => {
+            screenJoin.classList.add('hidden');
+            screenHome.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-confirm-join').addEventListener('click', () => {
+            const code = document.getElementById('join-code-input').value.trim();
+            const pseudo = document.getElementById('pseudo-input').value.trim() || 'Joueur';
+            if (code.length !== 12) return alert("Le code doit faire 12 chiffres.");
+            socket.emit('join_room', { roomCode: code, pseudo, avatar: userAvatar, role: 'Souris' });
+        });
+
+        // Salon créé / rejoint
+        socket.on('room_created', (data) => {
+            currentRoomCode = data.roomCode;
+            isHost = true;
+            document.getElementById('display-code').innerText = currentRoomCode;
+            document.getElementById('btn-launch').classList.remove('hidden');
+            screenHome.classList.add('hidden');
+            screenLobby.classList.remove('hidden');
+        });
+
+        socket.on('room_joined', (data) => {
+            currentRoomCode = data.roomCode;
+            isHost = false;
+            document.getElementById('display-code').innerText = currentRoomCode;
+            screenJoin.classList.add('hidden');
+            screenLobby.classList.remove('hidden');
+        });
+
+        socket.on('error_msg', (msg) => alert(msg));
+
+        // Mise à jour du timer
+        socket.on('timer_update', (time) => {
+            document.getElementById('display-timer').innerText = time + 's';
+        });
+
+        // Changement de camp
+        document.getElementById('role-select').addEventListener('change', (e) => {
+            socket.emit('change_role', e.target.value);
+        });
+
+        // Lancement manuel par l'hôte
+        document.getElementById('btn-launch').addEventListener('click', () => {
+            socket.emit('launch_game');
+        });
+
+        // Lancement de la partie
+        socket.on('game_started', initGameScreen);
+        socket.on('start_game_auto', initGameScreen);
+
+        function initGameScreen() {
+            screenLobby.classList.add('hidden');
+            screenGame.classList.remove('hidden');
+            initMap();
+        }
+
+        // Carte Leaflet + Fonds Satellite
+        let map;
+        function initMap() {
+            if (map) return;
+            const vueSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+            const carteModerne = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+            
+            map = L.map('map', { center: [48.8566, 2.3522], zoom: 13, layers: [vueSatellite] });
+            L.control.layers({ "🛰️ Satellite": vueSatellite, "🗺️ Moderne": carteModerne }).addTo(map);
+        }
+
+        // Marqueur avec Pseudo AU-DESSUS de la photo
+        function createCustomIcon(pseudo, avatarUrl, role) {
+            const roleIcon = role === 'Chat' ? '🐱' : '🐭';
+            const roleClass = role === 'Chat' ? 'chat' : 'souris';
             return L.divIcon({
                 className: 'player-avatar-marker',
                 html: `<div>
-                        <img src="${avatarUrl || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}">
+                        <span class="pseudo-tag">${roleIcon} ${pseudo}</span>
                         <br>
-                        <span class="pseudo-tag">${pseudo}</span>
+                        <img src="${avatarUrl || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="${roleClass}">
                        </div>`,
-                iconSize: [50, 60],
-                iconAnchor: [25, 30]
+                iconSize: [60, 65],
+                iconAnchor: [30, 35]
             });
         }
 
-        // Synchronisation des joueurs
-        socket.on('current_players', (players) => {
-            for (let id in players) {
-                if (id !== socket.id && !otherMarkers[id]) {
-                    const p = players[id];
-                    const icon = createCustomIcon(p.pseudo, p.avatar);
-                    otherMarkers[id] = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
-                }
-            }
-        });
-
+        // Positions GPS & Joueurs
         socket.on('player_moved', (data) => {
             if (data.id === socket.id) return;
-            const icon = createCustomIcon(data.pseudo, data.avatar);
-            
+            const icon = createCustomIcon(data.pseudo, data.avatar, data.role);
             if (otherMarkers[data.id]) {
                 otherMarkers[data.id].setLatLng([data.lat, data.lng]);
                 otherMarkers[data.id].setIcon(icon);
             } else {
-                otherMarkers[data.id] = L.marker([data.lat, data.lng], { icon: icon }).addTo(map);
+                otherMarkers[data.id] = L.marker([data.lat, data.lng], { icon }).addTo(map);
             }
         });
 
@@ -188,62 +251,56 @@
             }
         });
 
-        // Activer le GPS
+        // Activer GPS
         document.getElementById('btn-start').addEventListener('click', () => {
             if (!navigator.geolocation) return alert("GPS non supporté.");
-            
             const pseudo = document.getElementById('pseudo-input').value.trim() || 'Joueur';
+            const role = document.getElementById('role-select').value;
 
-            firstLocation = true;
             watchID = navigator.geolocation.watchPosition((pos) => {
                 const { latitude, longitude } = pos.coords;
                 document.getElementById('status').innerText = `GPS Actif (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
 
-                const myIcon = createCustomIcon(pseudo + ' (Moi)', userAvatar);
+                const myIcon = createCustomIcon(pseudo + ' (Moi)', userAvatar, role);
 
                 if (!ownMarker) {
                     ownMarker = L.marker([latitude, longitude], { icon: myIcon }).addTo(map);
+                    map.setView([latitude, longitude], 17);
                 } else {
                     ownMarker.setLatLng([latitude, longitude]);
                     ownMarker.setIcon(myIcon);
                 }
 
-                if (firstLocation) {
-                    map.setView([latitude, longitude], 17);
-                    firstLocation = false;
-                }
-
-                socket.emit('update_position', { 
-                    lat: latitude, 
-                    lng: longitude, 
-                    pseudo: pseudo, 
-                    avatar: userAvatar 
-                });
-            }, (err) => alert("Active la localisation sur ton téléphone !"), { enableHighAccuracy: true });
+                socket.emit('update_position', { lat: latitude, lng: longitude });
+            }, () => alert("Active le GPS !"), { enableHighAccuracy: true });
 
             document.getElementById('btn-start').disabled = true;
-            document.getElementById('btn-start').style.opacity = '0.5';
             document.getElementById('btn-stop').disabled = false;
-            document.getElementById('btn-stop').style.opacity = '1';
-            document.getElementById('pseudo-input').disabled = true;
-            document.getElementById('avatar-input').disabled = true;
         });
 
-        // Désactiver le GPS
+        // Désactiver GPS
         document.getElementById('btn-stop').addEventListener('click', () => {
             if (watchID) navigator.geolocation.clearWatch(watchID);
-            if (ownMarker) {
-                map.removeLayer(ownMarker);
-                ownMarker = null;
-            }
-            socket.emit('leave_game');
-            document.getElementById('status').innerText = "Vous avez quitté la carte.";
+            if (ownMarker) { map.removeLayer(ownMarker); ownMarker = null; }
+            document.getElementById('status').innerText = "GPS Inactif";
             document.getElementById('btn-start').disabled = false;
-            document.getElementById('btn-start').style.opacity = '1';
             document.getElementById('btn-stop').disabled = true;
-            document.getElementById('btn-stop').style.opacity = '0.5';
-            document.getElementById('pseudo-input').disabled = false;
-            document.getElementById('avatar-input').disabled = false;
+        });
+
+        // Plein écran carte uniquement
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        btnFullscreen.addEventListener('click', () => {
+            const mapEl = document.getElementById('map');
+            if (!document.fullscreenElement) {
+                mapEl.requestFullscreen().catch(() => alert("Plein écran non supporté"));
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            btnFullscreen.innerText = document.fullscreenElement ? "Réduire" : "Plein écran";
+            if (map) setTimeout(() => map.invalidateSize(), 200);
         });
     </script>
 </body>
