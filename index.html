@@ -24,29 +24,46 @@
         .room-code-display { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #007bff; background: #eef5ff; padding: 10px; border-radius: 8px; }
         .timer-display { font-size: 26px; font-weight: bold; color: #dc3545; }
 
-        /* Style Marqueur : Pseudo AU-DESSUS de la photo */
+        /* Style des Puces Pinpoint (Goutte GPS) */
         .player-avatar-marker { text-align: center; }
         .player-avatar-marker .pseudo-tag {
             background: rgba(0, 0, 0, 0.85);
             color: white;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
-            padding: 3px 8px;
-            border-radius: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
             white-space: nowrap;
             display: inline-block;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
-        .player-avatar-marker img {
-            width: 44px;
-            height: 44px;
+
+        /* Forme de goutte pinpoint */
+        .pin-wrapper {
+            width: 32px;
+            height: 32px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            border: 2px solid white;
+        }
+        .pin-wrapper.chat { background: #dc3545; }
+        .pin-wrapper.souris { background: #28a745; }
+
+        /* Photo dans le rond du pin */
+        .pin-avatar {
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
+            transform: rotate(45deg); /* Remet la photo droite */
             object-fit: cover;
             background: white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         }
-        .player-avatar-marker img.chat { border: 3px solid #dc3545; }
-        .player-avatar-marker img.souris { border: 3px solid #28a745; }
     </style>
 </head>
 <body>
@@ -118,7 +135,7 @@
         const otherMarkers = {};
         let watchID = null;
 
-        // Navigation entre écrans
+        // Navigation
         const screenHome = document.getElementById('screen-home');
         const screenJoin = document.getElementById('screen-join');
         const screenLobby = document.getElementById('screen-lobby');
@@ -137,7 +154,7 @@
             }
         });
 
-        // Boutons Accueil
+        // Boutons
         document.getElementById('btn-create-view').addEventListener('click', () => {
             const pseudo = document.getElementById('pseudo-input').value.trim() || 'Joueur';
             socket.emit('create_room', { pseudo, avatar: userAvatar, role: 'Souris' });
@@ -160,7 +177,6 @@
             socket.emit('join_room', { roomCode: code, pseudo, avatar: userAvatar, role: 'Souris' });
         });
 
-        // Salon créé / rejoint
         socket.on('room_created', (data) => {
             currentRoomCode = data.roomCode;
             isHost = true;
@@ -180,22 +196,18 @@
 
         socket.on('error_msg', (msg) => alert(msg));
 
-        // Mise à jour du timer
         socket.on('timer_update', (time) => {
             document.getElementById('display-timer').innerText = time + 's';
         });
 
-        // Changement de camp
         document.getElementById('role-select').addEventListener('change', (e) => {
             socket.emit('change_role', e.target.value);
         });
 
-        // Lancement manuel par l'hôte
         document.getElementById('btn-launch').addEventListener('click', () => {
             socket.emit('launch_game');
         });
 
-        // Lancement de la partie
         socket.on('game_started', initGameScreen);
         socket.on('start_game_auto', initGameScreen);
 
@@ -205,7 +217,6 @@
             initMap();
         }
 
-        // Carte Leaflet + Fonds Satellite
         let map;
         function initMap() {
             if (map) return;
@@ -216,7 +227,7 @@
             L.control.layers({ "🛰️ Satellite": vueSatellite, "🗺️ Moderne": carteModerne }).addTo(map);
         }
 
-        // Marqueur avec Pseudo AU-DESSUS de la photo
+        // Création de l'icône Pinpoint personnalisée
         function createCustomIcon(pseudo, avatarUrl, role) {
             const roleIcon = role === 'Chat' ? '🐱' : '🐭';
             const roleClass = role === 'Chat' ? 'chat' : 'souris';
@@ -224,15 +235,15 @@
                 className: 'player-avatar-marker',
                 html: `<div>
                         <span class="pseudo-tag">${roleIcon} ${pseudo}</span>
-                        <br>
-                        <img src="${avatarUrl || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="${roleClass}">
+                        <div class="pin-wrapper ${roleClass}">
+                            <img src="${avatarUrl || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="pin-avatar">
+                        </div>
                        </div>`,
-                iconSize: [60, 65],
-                iconAnchor: [30, 35]
+                iconSize: [40, 50],
+                iconAnchor: [20, 48] /* Pointe exacte du pin */
             });
         }
 
-        // Positions GPS & Joueurs
         socket.on('player_moved', (data) => {
             if (data.id === socket.id) return;
             const icon = createCustomIcon(data.pseudo, data.avatar, data.role);
@@ -251,7 +262,6 @@
             }
         });
 
-        // Activer GPS
         document.getElementById('btn-start').addEventListener('click', () => {
             if (!navigator.geolocation) return alert("GPS non supporté.");
             const pseudo = document.getElementById('pseudo-input').value.trim() || 'Joueur';
@@ -278,7 +288,6 @@
             document.getElementById('btn-stop').disabled = false;
         });
 
-        // Désactiver GPS
         document.getElementById('btn-stop').addEventListener('click', () => {
             if (watchID) navigator.geolocation.clearWatch(watchID);
             if (ownMarker) { map.removeLayer(ownMarker); ownMarker = null; }
@@ -287,7 +296,6 @@
             document.getElementById('btn-stop').disabled = true;
         });
 
-        // Plein écran carte uniquement
         const btnFullscreen = document.getElementById('btn-fullscreen');
         btnFullscreen.addEventListener('click', () => {
             const mapEl = document.getElementById('map');
@@ -304,4 +312,5 @@
         });
     </script>
 </body>
-</html>
+    </html>
+    
