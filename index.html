@@ -165,14 +165,19 @@
         </div>
     </div>
 
-    <!-- ZONE VIDÉO (Sous le lanceur) -->
-    <div class="card">
-        <h3>🎥 Vidéo explicative</h3>
-        <video controls style="width: 100%; max-height: 400px; border-radius: 12px;">
-            <source src="tuto.mp4" type="video/mp4">
-            Votre navigateur ne supporte pas la lecture de la vidéo.
-        </video>
+    <!-- ZONE VIDÉO YOUTUBE (Sous le lanceur) -->
+<div class="card">
+    <h3>🎥 Vidéo explicative</h3>
+    <div style="position: relative; max-width: 340px; margin: 0 auto; aspect-ratio: 9/16; overflow: hidden; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+        <iframe 
+            src="https://www.youtube.com/embed/34UUTZOPL8k" 
+            style="position: absolute; top:0; left:0; width:100%; height:100%; border:0;" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+        </iframe>
     </div>
+</div>
+    
 
     <!-- ZONE RÈGLES DU JEU (En bas) -->
     <div class="card rules-card">
