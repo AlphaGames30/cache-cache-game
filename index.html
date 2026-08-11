@@ -16,7 +16,6 @@
             min-height: 100vh;
         }
         
-        /* Bouton Musique Flottant */
         .music-toggle {
             position: fixed;
             top: 15px;
@@ -33,9 +32,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             width: auto;
         }
-        .music-toggle.playing {
-            background: rgba(40, 167, 69, 0.9);
-        }
+        .music-toggle.playing { background: rgba(40, 167, 69, 0.9); }
 
         .card { 
             background: rgba(255, 255, 255, 0.92); 
@@ -63,7 +60,6 @@
         .room-code-display { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #007bff; background: #eef5ff; padding: 10px; border-radius: 8px; }
         .timer-display { font-size: 26px; font-weight: bold; color: #dc3545; }
 
-        /* Puces GPS Pinpoint */
         .player-avatar-marker { text-align: center; }
         .player-avatar-marker .pseudo-tag {
             background: rgba(0, 0, 0, 0.85);
@@ -102,26 +98,19 @@
             background: white;
         }
 
-        /* Règles du Jeu */
         .rules-card { text-align: left; padding: 20px; }
         .rules-title { text-align: center; font-size: 28px; margin-top: 0; margin-bottom: 15px; color: #111; }
-        .rules-text { font-size: 25px; font-style: italic; line-height: 1.4; color: #222; }
-        .rules-text p { margin: 12px 0; }
+        .rules-text { font-size: 18px; line-height: 1.5; color: #222; }
     </style>
 </head>
 <body>
 
-    <!-- BOUTON & AUDIO MUSIQUE DE FOND -->
     <button id="btn-music" class="music-toggle">🎵 Musique : OFF</button>
-    <!-- MUSIQUE DE FOND LIBRE DE DROITS -->
-<audio id="bg-music" loop preload="auto">
-    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
-</audio>
-    
+    <audio id="bg-music" loop preload="auto">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
 
-    <!-- ZONE LANCEUR DE JEU -->
     <div id="game-app">
-        <!-- ÉCRAN D'ACCUEIL -->
         <div id="screen-home" class="card">
             <h2>Cache-Cache GPS</h2>
             <input type="text" id="pseudo-input" placeholder="Ton Pseudo" value="Joueur">
@@ -134,7 +123,6 @@
             <button class="btn-green" id="btn-join-view">Rejoindre une partie</button>
         </div>
 
-        <!-- REJOINDRE -->
         <div id="screen-join" class="card hidden">
             <h3>Rejoindre une partie</h3>
             <input type="text" id="join-code-input" placeholder="Code à 12 chiffres" maxlength="12">
@@ -142,7 +130,6 @@
             <button class="btn-grey" id="btn-back-home">Retour</button>
         </div>
 
-        <!-- SALON DE LOBBY -->
         <div id="screen-lobby" class="card hidden">
             <h3>Salon de jeu</h3>
             <p>Code de la partie :</p>
@@ -158,12 +145,20 @@
                 </select>
             </div>
 
+            <!-- NOUVELLES OPTIONS DE VISIBILITÉ -->
+            <div style="margin: 15px 0;">
+                <label><b>Mode de la carte GPS :</b></label><br>
+                <select id="gps-mode-select">
+                    <option value="cats_see_mice">😼 Seuls les Chats voient les Souris</option>
+                    <option value="all">📍 Tout le monde se voit</option>
+                </select>
+            </div>
+
             <div id="players-list-box" style="font-size: 14px; color: #555; margin-bottom: 10px;">Joueurs prêts...</div>
 
             <button class="btn-blue hidden" id="btn-launch">🚀 Lancer la partie</button>
         </div>
 
-        <!-- ÉCRAN DE JEU (CARTE) -->
         <div id="screen-game" class="hidden">
             <div id="map"></div>
             <div class="card">
@@ -177,7 +172,6 @@
         </div>
     </div>
 
-    <!-- ZONE VIDÉO YOUTUBE -->
     <div class="card">
         <h3>🎥 Vidéo explicative</h3>
         <div style="position: relative; max-width: 340px; margin: 0 auto; aspect-ratio: 9/16; overflow: hidden; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
@@ -190,14 +184,13 @@
         </div>
     </div>
 
-    <!-- ZONE RÈGLES DU JEU -->
     <div class="card rules-card">
         <h2 class="rules-title">But du jeu</h2>
         <div class="rules-text">
-            <p>Vous devrez échapper au chat qui tentera de vous attrapé tout au long du jeu</p>
-            <p>- Si vous êtes touché vous deviendrait chat et attraper les souris en retour</p>
-            <p>Le jeu se joue de 2 a 14</p>
-            <p>Pour le temps vous aurez besoin d'un chronomètre ou d'un site chronomètre et au bout du temps que vous aurais choisis comme étant la fin celui qui a été le plus souris gagne !</p>
+            <p>Vous devrez échapper au chat qui tentera de vous attraper tout au long du jeu.</p>
+            <p>- Si vous êtes touché vous devenez chat et vous devez attraper les souris à votre tour.</p>
+            <p>Le jeu se joue de 2 à 14 joueurs.</p>
+            <p>À la fin du temps imparti, le joueur ayant été souris le plus longtemps gagne la partie !</p>
         </div>
     </div>
 
@@ -206,16 +199,16 @@
     <script>
         const socket = io('https://cache-cache-game.onrender.com');
 
-        // Gestion de la Musique de Fond
         const bgMusic = document.getElementById('bg-music');
         const btnMusic = document.getElementById('btn-music');
-        bgMusic.volume = 0.25; // Volume modéré (25%)
+        bgMusic.volume = 0.2;
 
         btnMusic.addEventListener('click', () => {
             if (bgMusic.paused) {
-                bgMusic.play();
-                btnMusic.innerText = "🔊 Musique : ON";
-                btnMusic.classList.add('playing');
+                bgMusic.play().then(() => {
+                    btnMusic.innerText = "🔊 Musique : ON";
+                    btnMusic.classList.add('playing');
+                }).catch(() => alert("Clique à nouveau pour lancer la musique !"));
             } else {
                 bgMusic.pause();
                 btnMusic.innerText = "🎵 Musique : OFF";
@@ -229,6 +222,7 @@
         let ownMarker = null;
         const otherMarkers = {};
         let watchID = null;
+        let selectedGpsMode = 'cats_see_mice';
 
         const screenHome = document.getElementById('screen-home');
         const screenJoin = document.getElementById('screen-join');
@@ -296,6 +290,10 @@
             socket.emit('change_role', e.target.value);
         });
 
+        document.getElementById('gps-mode-select').addEventListener('change', (e) => {
+            selectedGpsMode = e.target.value;
+        });
+
         document.getElementById('btn-launch').addEventListener('click', () => {
             socket.emit('launch_game');
         });
@@ -304,6 +302,7 @@
         socket.on('start_game_auto', initGameScreen);
 
         function initGameScreen() {
+            selectedGpsMode = document.getElementById('gps-mode-select').value;
             screenLobby.classList.add('hidden');
             screenGame.classList.remove('hidden');
             initMap();
@@ -335,8 +334,20 @@
             });
         }
 
+        // LOGIQUE : SI LE MODE EST "cats_see_mice" ET QUE JE SUIS UNE SOURIS, JE NE VOIS PAS LE CHAT
         socket.on('player_moved', (data) => {
             if (data.id === socket.id) return;
+
+            const myRole = document.getElementById('role-select').value;
+
+            if (selectedGpsMode === 'cats_see_mice' && myRole === 'Souris' && data.role === 'Chat') {
+                if (otherMarkers[data.id]) {
+                    map.removeLayer(otherMarkers[data.id]);
+                    delete otherMarkers[data.id];
+                }
+                return;
+            }
+
             const icon = createCustomIcon(data.pseudo, data.avatar, data.role);
             if (otherMarkers[data.id]) {
                 otherMarkers[data.id].setLatLng([data.lat, data.lng]);
@@ -404,3 +415,4 @@
     </script>
 </body>
 </html>
+
